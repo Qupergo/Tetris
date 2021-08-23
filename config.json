@@ -1,0 +1,14 @@
+{
+    "interface": {
+        "screen_height": 750,
+        "fps": 60,
+        "slowness": 10
+    },
+    "board": {
+        "rows": 20,
+        "cols": 10
+    },
+    "blocks": {
+        "types": ["../..", "....", "./...", "ss./...", "../s..", "s../..", "s./..."]
+    }
+}
