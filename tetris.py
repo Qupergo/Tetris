@@ -35,44 +35,37 @@ class Tetris:
         self.current_block = None
         self.__spawn_block()
 
-    #Debugging function
-    def print_is_blocked(self):
-        for y in range(self.get_rows() - 1, -1, -1):
-            text = ""
-            for x in range(self.get_cols()):
-                if self.__tile_is_block(x, y):
-                    text += "1"
-                else:
-                    text += "0"
-            print(text)
-
     #Handles what happens at this current game state
     def update(self):
-        print("Updating")
-
         current_block = self.__current_block()
         if current_block == None:
-            print("Spawning block")
             self.__spawn_block()
-            return
+        else:
+            tile_positions = current_block.get_tile_positions()
+            if not self.__can_move_down(tile_positions):
+                self.__stop_block()
+            else:
+                self.__move_down(tile_positions, current_block.get_color())
 
-        current_block_color = current_block.get_color()
-        tile_positions = current_block.get_tile_positions()
+    def __can_move_down(self, tile_positions):
+        for tile_position in tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            if y + 1 >= self.get_rows() or self.__tile_is_block(x, y + 1):
+                return False
+        return True
+
+    def __move_down(self, tile_positions, current_block_color):
         new_tile_positions = []
-        # print(tile_positions)
-        # print(self.print_is_blocked())
-        for y in range(self.get_rows() - 1, -1, -1):
-            for x in range(self.get_cols()):
-                position = {"x": x, "y": y}
-                if position in tile_positions:
-                    if y + 1 >= self.get_rows() or self.__tile_is_block(x, y + 1):
-                        self.__stop_block()
-                        return
-                    else:
-                        self.__get_tile(x, y).set_color(BACKGROUND_COLOR)
-                        self.__get_tile(x, y + 1).set_color(current_block_color)
-                        new_tile_position = {"x": x, "y": y + 1}
-                        new_tile_positions.append(new_tile_position)
+        for tile_position in tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).set_color(BACKGROUND_COLOR)
+            new_tile_position = {"x": x, "y": y + 1}
+            new_tile_positions.append(new_tile_position)
+
+        for tile_position in new_tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).set_color(current_block_color)
+
         self.__current_block().set_tile_positions(new_tile_positions)
 
     def __tile_is_block(self, x, y):
@@ -101,7 +94,6 @@ class Tetris:
             x, y = tile_position["x"], tile_position["y"]
             self.__get_tile(x, y).set_is_block(True)
         self.__reset_current_block()
-        print("Stopping block")
 
     def __block_types(self):
         return self.block_types
@@ -121,11 +113,10 @@ class Tetris:
     def get_cols(self):
         return cols
 
-class Block: # TODO: tile_positions doesnt seem to reset when spawning new block...
-    tile_positions = []
+class Block:
     def __init__(self, position, block_type, color):
-        print("Block type: " + block_type)
         self.color = color
+        self.tile_positions = []
         self.__parse_block_type(block_type, position)
     
     def get_tile_positions(self):
@@ -138,7 +129,6 @@ class Block: # TODO: tile_positions doesnt seem to reset when spawning new block
         return self.color
 
     def __parse_block_type(self, block_type, position):
-        print(block_type)
         x, y = position["x"], position["y"]
         for char in block_type:
             if char == ".":
@@ -149,10 +139,6 @@ class Block: # TODO: tile_positions doesnt seem to reset when spawning new block
                 x = position["x"]
             elif char == "s":
                 x += 1
-
-        print("all positions:")
-        for tile in self.get_tile_positions():
-            print(tile["x"], tile["y"])
     
     def __add_tile_position(self, x, y):
         tile_position = {"x": x, "y": y}
@@ -184,7 +170,7 @@ class Graphics:
         # Fill the background with white
         self.__screen().fill(BACKGROUND_COLOR)
 
-    # Display a block
+    # Display a tile
     def __draw_tile(self, x, y, color):
         size = self.__tile_size()
         position = (x * size, y * size, size, size)
@@ -205,7 +191,7 @@ class Graphics:
     def __tetris(self):
         return self.tetris
 
-class Interface:
+class Game:
     def __init__(self, fps, width, height, slowness, tetris, size):
         self.clock = pygame.time.Clock()
         self.fps = fps
@@ -214,13 +200,11 @@ class Interface:
         self.slowness = slowness
         self.tetris = tetris
         self.graphics = Graphics(width, height, size, tetris)
-        self.__run()
 
-    def __run(self):
+    def run(self):
         while self.__running():
             self.__add_to_frame_count()
             self.__clock().tick(self.__fps())
-            print("slowness:", self.__slowness())
             if self.__frame_count() % self.__slowness() == 0:
                 self.__tetris().update()
             for event in pygame.event.get():
@@ -279,4 +263,5 @@ if __name__ == "__main__":
     block_types = data["blocks"]["types"]
 
     tetris = Tetris(block_types, rows, cols)
-    interface = Interface(fps, width, height, slowness, tetris, size)
+    game = Game(fps, width, height, slowness, tetris, size)
+    game.run()
