@@ -54,6 +54,61 @@ class Tetris:
                 return False
         return True
 
+    def try_move(self, right : bool):
+        current_block = self.__current_block()
+        tile_positions = current_block.get_tile_positions()
+        current_block_color = self.__current_block().get_color()
+        if(right):
+            if (self.__can_move_right(tile_positions)):
+                self.__move_right(tile_positions, current_block_color)
+
+        else:
+            if (self.__can_move_left(tile_positions)):
+                self.__move_left(tile_positions, current_block_color)
+         
+
+    def __can_move_left(self, tile_positions):
+        for tile_position in tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            if x  <= 0:
+                return False
+        return True    
+
+    def __can_move_right(self, tile_positions):
+        for tile_position in tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            if x  >= (self.get_cols()) - 1:
+                return False
+        return True
+
+    def __move_left(self, tile_positions, current_block_color):
+        new_tile_positions = []
+        for tile_position in tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).set_color(BACKGROUND_COLOR)
+            new_tile_position = {"x": x - 1, "y": y}
+            new_tile_positions.append(new_tile_position)
+
+        for tile_position in new_tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).set_color(current_block_color)
+
+        self.__current_block().set_tile_positions(new_tile_positions) 
+
+    def __move_right(self, tile_positions, current_block_color):
+        new_tile_positions = []
+        for tile_position in tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).set_color(BACKGROUND_COLOR)
+            new_tile_position = {"x": x + 1, "y": y}
+            new_tile_positions.append(new_tile_position)
+
+        for tile_position in new_tile_positions:
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).set_color(current_block_color)
+
+        self.__current_block().set_tile_positions(new_tile_positions)             
+
     def __move_down(self, tile_positions, current_block_color):
         new_tile_positions = []
         for tile_position in tile_positions:
@@ -80,7 +135,7 @@ class Tetris:
     def __spawn_block(self):
         x, y = cols // 2, 0
         position = {"x": x, "y": y}
-        random_color = (random.randint(0, 256), random.randint(0, 256), random.randint(0, 256))
+        random_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         block = Block(position, random.choice(self.__block_types()), random_color)
         for tile_position in block.get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
@@ -174,6 +229,7 @@ class Graphics:
     def __draw_tile(self, x, y, color):
         size = self.__tile_size()
         position = (x * size, y * size, size, size)
+        print(color)
         pygame.draw.rect(self.__screen(), color, position)
 
     def __width(self):
@@ -213,6 +269,18 @@ class Game:
             self.__graphics().display_scene()
             
     def __check_user_event(self, event):
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_a:
+                right = False
+                tetris.try_move(right)
+
+            elif event.key == pygame.K_d:
+                right = True
+                tetris.try_move(right)
+                
+                
+
         if event.type == pygame.QUIT:
             self.__stop_running()
             # TODO: Hantera user-input
