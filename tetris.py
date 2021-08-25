@@ -41,6 +41,7 @@ class Tetris:
         self.rows, self.cols = rows, cols
         self.block_types = block_types
         self.current_block = None
+        self.game_over = False
         self.__spawn_block()
 
         # Use this code below to test the row completion mechanic, (and wait for a fitting block)
@@ -64,6 +65,8 @@ class Tetris:
         else:
             tile_positions = current_block.get_tile_positions()
             if not self.__can_move_down(tile_positions):
+                if self.get_game_over():
+                    return
                 self.__stop_block()
             else:
                 self.__move_down(tile_positions, current_block.get_color())
@@ -91,11 +94,19 @@ class Tetris:
     def __can_move_down(self, tile_positions):
         for tile_position in tile_positions:
             x, y = tile_position["x"], tile_position["y"]
-            if y < 0:
+            if y < -1:
                 continue
-            if y + 1 >= self.get_rows() or self.__tile_is_block(x, y + 1):
+            if y + 1 >= self.get_rows():
+                return False
+            if self.__tile_is_block(x, y + 1):
+                if y + 1 == 0: #If we cannot move down because there is a block at the top layer, it is game over!
+                    self.__end_game()
                 return False
         return True
+
+    def __end_game(self):
+        self.__reset_current_block()
+        self.__set_game_over(True)
 
     #Moves all the tiles above a completed row down
     def __fall_after_completed(self, highest_completed_row):
@@ -132,7 +143,7 @@ class Tetris:
         return self.board
 
     def __spawn_block(self):
-        x, y = cols // 2, -2
+        x, y = cols // 2, -3
         position = {"x": x, "y": y}
         random_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         block = Block(position, random.choice(self.__block_types()), random_color)
@@ -166,6 +177,12 @@ class Tetris:
 
     def get_cols(self):
         return cols
+    
+    def get_game_over(self):
+        return self.game_over
+
+    def __set_game_over(self, game_over):
+        self.game_over = game_over
 
 class Block:
     def __init__(self, position, block_type, color):
@@ -259,6 +276,11 @@ class Game:
         while self.__running():
             self.__add_to_frame_count()
             self.__clock().tick(self.__fps())
+
+            if self.__tetris().get_game_over():
+                print("Game over")
+                return
+
             if self.__frame_count() % self.__slowness() == 0:
                 self.__tetris().update()
             for event in pygame.event.get():
