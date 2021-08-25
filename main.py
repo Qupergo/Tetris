@@ -9,7 +9,6 @@ clock = pygame.time.Clock()
 board = []
 rows = 10
 cols = 20
-
 size = 25
 
 for y in range(cols):
@@ -83,22 +82,24 @@ while running:
             running = False
         
         if event.type == pygame.KEYDOWN:
+
             if event.key == pygame.K_a:
-                if not current_pos["x"] <= 0:
-                    current_pos["x"] -= size
-                else:
+                if current_pos["x"] < size:
                     current_pos["x"] = 0
+                else:
+                    current_pos["x"] -= size
 
             elif event.key == pygame.K_d:
-                if not (current_pos["x"] + size) >= width:
-                    current_pos["x"] += size
+                
+                if (current_pos["x"]) >= width - (2 * size):
+                    current_pos["x"] = width - (2 * size)
                 else:
-                    current_pos["x"] = width
+                    current_pos["x"] += size
 
     # Fill the background with white
     screen.fill((255, 255, 255))
 
-    # Draw a solid blue circle in the center    
+    # Draws the block, TODO: Random block.
     print(draw_block(O, (255, 255, 0), (current_pos["x"], current_pos["y"])))
 
     pygame.display.flip()
