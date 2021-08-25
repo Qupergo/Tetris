@@ -28,6 +28,10 @@ class Tile:
     def get_is_block(self):
         return self.is_block
 
+    def reset(self):
+        self.set_is_block(False)
+        self.set_color(BACKGROUND_COLOR)
+
 class Tetris:
     def __init__(self, block_types, block_colors, rows, cols):
         self.board = [[Tile(x, y, False, BACKGROUND_COLOR) for y in range(rows)] for x in range(cols)]
@@ -44,22 +48,26 @@ class Tetris:
             self.__spawn_block()
         else:
             tile_positions = current_block.get_tile_positions()
+            color = current_block.get_color()
             if not self.__can_move_down(tile_positions):
                 self.__stop_block()
             else:
-                self.__move_down(current_block.get_tile_matrix(), current_block.get_color())
+                self.__move_down(color)
+
 
     def __can_rotate(self):
         rotated_tile_matrix = self.__current_block().get_rotated_matrix()
         for y, tile_row in enumerate(rotated_tile_matrix):
             for x, block_on_tile in enumerate(tile_row):
                 if block_on_tile:
-                    if y >= self.get_rows() or self.__tile_is_block(x, y):
+                    if y >= self.get_rows() or self.__tile_is_block(x, y) or x >= self.get_cols() or x < 0:
                         return False
         return True
     
-    def __rotate(self):
+    def __rotate(self, current_block_color):
+        self.__reset_current_block_tiles()
         self.__current_block().set_tile_matrix(self.__current_block().get_rotated_matrix())
+        self.__set_current_block_tiles(current_block_color)
 
 
     def __can_move_down(self, tile_positions):
@@ -69,19 +77,14 @@ class Tetris:
                 return False
         return True
 
-    def __move_down(self, tile_matrix, current_block_color):
+    def __move_down(self, current_block_color):
+
+        self.__reset_current_block_tiles()
 
         old_position = self.__current_block().get_position()
-        for y, tile_row in enumerate(tile_matrix):
-            for x, block_on_tile in enumerate(tile_row):
-                if block_on_tile:
-                    self.__get_tile(x + old_position["x"], y + old_position["y"]).set_color(BACKGROUND_COLOR)
-
         self.__current_block().set_position({"x":old_position["x"], "y":old_position["y"] + 1})
 
-        for tile_position in self.current_block.get_tile_positions():
-            x, y = tile_position["x"], tile_position["y"]
-            self.__get_tile(x, y).set_color(current_block_color)
+        self.__set_current_block_tiles(current_block_color)
 
     def __tile_is_block(self, x, y):
         return self.__get_tile(x, y).get_is_block()
@@ -130,6 +133,20 @@ class Tetris:
     def __set_current_block(self, block):
         self.current_block = block
 
+    def try_to_rotate(self):
+        if self.__can_rotate():
+            self.__rotate(self.__current_block().get_color())
+
+    def __reset_current_block_tiles(self): 
+        for tile_position in self.__current_block().get_tile_positions():
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).reset()
+    
+    def __set_current_block_tiles(self, color):
+        for tile_position in self.current_block.get_tile_positions():
+            x, y = tile_position["x"], tile_position["y"]
+            self.__get_tile(x, y).set_color(color)
+
     def get_rows(self):
         return rows
 
@@ -144,7 +161,6 @@ class Block:
         self.__parse_block_type(block_type)
     
     def get_tile_positions(self):
-        
         actual_tile_positions_on_board = []
         for y, row in enumerate(self.tile_matrix):
             for x, item in enumerate(row):
@@ -185,7 +201,7 @@ class Block:
     
     def get_rotated_matrix(self, clockwise=False):
         if not clockwise:
-            return list(zip(*self.get_tile_matrix[::-1]))
+            return list(zip(*self.get_tile_matrix()[::-1]))
 
 class Graphics:
     def __init__(self, width, height, tile_size, tetris):
@@ -261,7 +277,7 @@ class Game:
             # TODO: Hantera user-input
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_w:
-                self.__tetris().rotate()
+                self.__tetris().try_to_rotate()
                 pass
             if event.key == pygame.K_a:
                 pass
