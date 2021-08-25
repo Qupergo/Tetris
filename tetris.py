@@ -93,14 +93,23 @@ class Tetris:
 
     #Checks if the current block can be rotated
     def __can_rotate(self):
+        if self.__current_block() is None:
+            return False
+        position = self.__current_block().get_position()
         rotated_tile_matrix = self.__current_block().get_rotated_matrix()
         for y, tile_row in enumerate(rotated_tile_matrix):
             for x, block_on_tile in enumerate(tile_row):
                 if block_on_tile:
-                    if y >= self.get_rows() or self.__tile_is_block(x, y) or x >= self.get_cols() or x < 0:
+                    if self.__out_of_bounds(x + position["x"], y + position["y"]):
                         return False
         return True
-    
+
+    #Check if a position is out of bounds
+    def __out_of_bounds(self, x, y):
+        if y >= self.get_rows() or y < 0 or self.__tile_is_block(x, y) or x >= self.get_cols() or x < 0:
+            return True
+        return False
+
     #Rotates the current block
     def __rotate(self, current_block_color):
         self.__reset_current_block_tiles()
