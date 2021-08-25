@@ -43,17 +43,18 @@ class Tetris:
         self.current_block = None
         self.__spawn_block()
 
-        #TODO: REMOVE
-        for y in range(rows - 2, rows):
-            for x in range(cols):
-                self.board[x][y].set_is_block(True)
-                self.board[x][y].set_color((255, 0, 255))
-            self.board[5][y].set_is_block(False)
-            self.board[6][y].set_is_block(False)
-            self.board[5][y].set_color(BACKGROUND_COLOR)
-            self.board[6][y].set_color(BACKGROUND_COLOR)
-        self.board[4][rows - 3].set_color((255, 0, 255))
-        self.board[4][rows - 3].set_is_block(True)
+        # Use this code below to test the row completion mechanic, (and wait for a fitting block)
+
+        # for y in range(rows - 2, rows):
+        #     for x in range(cols):
+        #         self.board[x][y].set_is_block(True)
+        #         self.board[x][y].set_color((255, 0, 255))
+        #     self.board[5][y].set_is_block(False)
+        #     self.board[6][y].set_is_block(False)
+        #     self.board[5][y].set_color(BACKGROUND_COLOR)
+        #     self.board[6][y].set_color(BACKGROUND_COLOR)
+        # self.board[4][rows - 3].set_color((255, 0, 255))
+        # self.board[4][rows - 3].set_is_block(True)
 
     #Handles what happens at this current game state
     def update(self):
@@ -90,6 +91,8 @@ class Tetris:
     def __can_move_down(self, tile_positions):
         for tile_position in tile_positions:
             x, y = tile_position["x"], tile_position["y"]
+            if y < 0:
+                continue
             if y + 1 >= self.get_rows() or self.__tile_is_block(x, y + 1):
                 return False
         return True
@@ -107,13 +110,15 @@ class Tetris:
         new_tile_positions = []
         for tile_position in tile_positions:
             x, y = tile_position["x"], tile_position["y"]
-            self.__get_tile(x, y).set_color(BACKGROUND_COLOR)
+            if y >= 0:
+                self.__get_tile(x, y).set_color(BACKGROUND_COLOR)
             new_tile_position = {"x": x, "y": y + 1}
             new_tile_positions.append(new_tile_position)
 
         for tile_position in new_tile_positions:
             x, y = tile_position["x"], tile_position["y"]
-            self.__get_tile(x, y).set_color(current_block_color)
+            if y >= 0:
+                self.__get_tile(x, y).set_color(current_block_color)
 
         self.__current_block().set_tile_positions(new_tile_positions)
 
@@ -127,15 +132,15 @@ class Tetris:
         return self.board
 
     def __spawn_block(self):
-        x, y = cols // 2, 0
+        x, y = cols // 2, -2
         position = {"x": x, "y": y}
         random_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         block = Block(position, random.choice(self.__block_types()), random_color)
         for tile_position in block.get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
-            tile = self.__get_tile(x, y)
-            tile.set_is_block(False)
-            tile.set_color(random_color)
+            if y >= 0:
+                tile = self.__get_tile(x, y)
+                tile.set_color(random_color)
         self.__set_current_block(block)
 
     def __stop_block(self):
@@ -211,7 +216,7 @@ class Graphics:
         board = self.__tetris().get_board()
         for row in board:
             for tile in row:
-                self.__draw_tile(tile.get_x(), tile.get_y(), tile.get_color())
+                self.__draw_tile(tile.get_x(), tile.get_y(), tile.get_color()) 
         pygame.display.flip()
 
     # Reset screen
