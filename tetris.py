@@ -56,11 +56,14 @@ class Tetris:
 
 
     def __can_rotate(self):
+        if self.__current_block() is None:
+            return False
+        position = self.__current_block().get_position()
         rotated_tile_matrix = self.__current_block().get_rotated_matrix()
         for y, tile_row in enumerate(rotated_tile_matrix):
             for x, block_on_tile in enumerate(tile_row):
                 if block_on_tile:
-                    if y >= self.get_rows() or self.__tile_is_block(x, y) or x >= self.get_cols() or x < 0:
+                    if (y + position["y"]) >= self.get_rows() or self.__tile_is_block(x + position["x"], y + position["y"]) or (x + position["x"]) >= self.get_cols() or (x + position["x"]) < 0:
                         return False
         return True
     
