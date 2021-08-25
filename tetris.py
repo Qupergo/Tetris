@@ -26,6 +26,14 @@ class Tile:
 
     def get_is_block(self):
         return self.is_block
+    
+    def copy_state(self, another_tile):
+        self.set_is_block(another_tile.get_is_block())
+        self.set_color(another_tile.get_color())
+
+    def reset(self):
+        self.set_is_block(False)
+        self.set_color(BACKGROUND_COLOR)
 
 class Tetris:
     def __init__(self, block_types, rows, cols):
@@ -34,6 +42,18 @@ class Tetris:
         self.block_types = block_types
         self.current_block = None
         self.__spawn_block()
+
+        #TODO: REMOVE
+        for y in range(rows - 2, rows):
+            for x in range(cols):
+                self.board[x][y].set_is_block(True)
+                self.board[x][y].set_color((255, 0, 255))
+            self.board[5][y].set_is_block(False)
+            self.board[6][y].set_is_block(False)
+            self.board[5][y].set_color(BACKGROUND_COLOR)
+            self.board[6][y].set_color(BACKGROUND_COLOR)
+        self.board[4][rows - 3].set_color((255, 0, 255))
+        self.board[4][rows - 3].set_is_block(True)
 
     #Handles what happens at this current game state
     def update(self):
@@ -46,7 +66,27 @@ class Tetris:
                 self.__stop_block()
             else:
                 self.__move_down(tile_positions, current_block.get_color())
+        self.__check_rows()
+    
+    #Checks if there are any completed rows
+    def __check_rows(self):
+        highest_completed_row = None
+        amount_of_completed_rows = 0
+        y = self.get_rows() - 1
+        while y >= 0:
+            if self.__check_row(y):
+                self.__fall_after_completed(y)
+            else:
+                y -= 1
 
+    #Checks if a specific row is completed
+    def __check_row(self, y):
+        for x in range(self.get_cols()):
+            if not self.__get_tile(x, y).get_is_block():
+                return False
+        return True
+
+    #Checks if a block can move down 1 step
     def __can_move_down(self, tile_positions):
         for tile_position in tile_positions:
             x, y = tile_position["x"], tile_position["y"]
@@ -54,6 +94,15 @@ class Tetris:
                 return False
         return True
 
+    #Moves all the tiles above a completed row down
+    def __fall_after_completed(self, highest_completed_row):
+        for y in range(highest_completed_row, 0, -1):
+            for x in range(self.get_cols()):
+                above_tile = self.__get_tile(x, y - 1)
+                self.__get_tile(x, y).copy_state(above_tile)
+                above_tile.reset()
+
+    #Moves down a block 1 step
     def __move_down(self, tile_positions, current_block_color):
         new_tile_positions = []
         for tile_position in tile_positions:
@@ -80,7 +129,7 @@ class Tetris:
     def __spawn_block(self):
         x, y = cols // 2, 0
         position = {"x": x, "y": y}
-        random_color = (random.randint(0, 256), random.randint(0, 256), random.randint(0, 256))
+        random_color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         block = Block(position, random.choice(self.__block_types()), random_color)
         for tile_position in block.get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
