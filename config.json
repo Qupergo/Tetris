@@ -2,7 +2,7 @@
     "interface": {
         "screen_height": 750,
         "fps": 60,
-        "slowness": 10
+        "slowness": 5
     },
     "board": {
         "rows": 20,
