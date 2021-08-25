@@ -1,5 +1,6 @@
 from file_helper import *
 import pygame, random
+import numpy as np
 
 BACKGROUND_COLOR = (0, 0, 0)
 
@@ -28,10 +29,11 @@ class Tile:
         return self.is_block
 
 class Tetris:
-    def __init__(self, block_types, rows, cols):
+    def __init__(self, block_types, block_colors, rows, cols):
         self.board = [[Tile(x, y, False, BACKGROUND_COLOR) for y in range(rows)] for x in range(cols)]
         self.rows, self.cols = rows, cols
         self.block_types = block_types
+        self.block_colors = block_colors
         self.current_block = None
         self.__spawn_block()
 
@@ -45,7 +47,20 @@ class Tetris:
             if not self.__can_move_down(tile_positions):
                 self.__stop_block()
             else:
-                self.__move_down(tile_positions, current_block.get_color())
+                self.__move_down(current_block.get_tile_matrix(), current_block.get_color())
+
+    def __can_rotate(self):
+        rotated_tile_matrix = self.__current_block().get_rotated_matrix()
+        for y, tile_row in enumerate(rotated_tile_matrix):
+            for x, block_on_tile in enumerate(tile_row):
+                if block_on_tile:
+                    if y >= self.get_rows() or self.__tile_is_block(x, y):
+                        return False
+        return True
+    
+    def __rotate(self):
+        self.__current_block().set_tile_matrix(self.__current_block().get_rotated_matrix())
+
 
     def __can_move_down(self, tile_positions):
         for tile_position in tile_positions:
@@ -54,19 +69,19 @@ class Tetris:
                 return False
         return True
 
-    def __move_down(self, tile_positions, current_block_color):
-        new_tile_positions = []
-        for tile_position in tile_positions:
-            x, y = tile_position["x"], tile_position["y"]
-            self.__get_tile(x, y).set_color(BACKGROUND_COLOR)
-            new_tile_position = {"x": x, "y": y + 1}
-            new_tile_positions.append(new_tile_position)
+    def __move_down(self, tile_matrix, current_block_color):
 
-        for tile_position in new_tile_positions:
+        old_position = self.__current_block().get_position()
+        for y, tile_row in enumerate(tile_matrix):
+            for x, block_on_tile in enumerate(tile_row):
+                if block_on_tile:
+                    self.__get_tile(x + old_position["x"], y + old_position["y"]).set_color(BACKGROUND_COLOR)
+
+        self.__current_block().set_position({"x":old_position["x"], "y":old_position["y"] + 1})
+
+        for tile_position in self.current_block.get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             self.__get_tile(x, y).set_color(current_block_color)
-
-        self.__current_block().set_tile_positions(new_tile_positions)
 
     def __tile_is_block(self, x, y):
         return self.__get_tile(x, y).get_is_block()
@@ -80,13 +95,14 @@ class Tetris:
     def __spawn_block(self):
         x, y = cols // 2, 0
         position = {"x": x, "y": y}
-        random_color = (random.randint(0, 256), random.randint(0, 256), random.randint(0, 256))
-        block = Block(position, random.choice(self.__block_types()), random_color)
+
+        tile_positions, color = self.__get_random_block()
+        block = Block(position, tile_positions, color)
         for tile_position in block.get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             tile = self.__get_tile(x, y)
             tile.set_is_block(False)
-            tile.set_color(random_color)
+            tile.set_color(block.color)
         self.__set_current_block(block)
 
     def __stop_block(self):
@@ -95,8 +111,15 @@ class Tetris:
             self.__get_tile(x, y).set_is_block(True)
         self.__reset_current_block()
 
+    def __get_random_block(self):
+        random_block_num = random.randint(0, len(self.__block_types()) - 1)
+        return self.__block_types()[random_block_num], self.__block_colors()[random_block_num]
+
     def __block_types(self):
         return self.block_types
+    
+    def __block_colors(self):
+        return self.block_colors
     
     def __current_block(self):
         return self.current_block
@@ -116,33 +139,53 @@ class Tetris:
 class Block:
     def __init__(self, position, block_type, color):
         self.color = color
-        self.tile_positions = []
-        self.__parse_block_type(block_type, position)
+        self.tile_matrix = []
+        self.position = position
+        self.__parse_block_type(block_type)
     
     def get_tile_positions(self):
-        return self.tile_positions
+        
+        actual_tile_positions_on_board = []
+        for y, row in enumerate(self.tile_matrix):
+            for x, item in enumerate(row):
+                if item == 1:
+                    actual_tile_positions_on_board.append({"x": x + self.position["x"], "y":y + self.position["y"]})
 
-    def set_tile_positions(self, tile_positions):
-        self.tile_positions = tile_positions
+        return actual_tile_positions_on_board
+    
+    def get_tile_matrix(self):
+        return self.tile_matrix
+    
+    def set_tile_matrix(self, tile_matrix):
+        self.tile_matrix = tile_matrix
 
     def get_color(self):
         return self.color
+    
+    def get_position(self):
+        return self.position
+    
+    def set_position(self, new_position):
+        self.position = new_position
 
-    def __parse_block_type(self, block_type, position):
-        x, y = position["x"], position["y"]
+    def __parse_block_type(self, block_type):
+        row = []
         for char in block_type:
             if char == ".":
-                self.__add_tile_position(x, y)
-                x += 1
+                row.append(True)
             elif char == "/":
-                y += 1
-                x = position["x"]
-            elif char == "s":
-                x += 1
+                self.__add_tile_row(row)
+                row = []
+            elif char == "0":
+               row.append(False)
+
+
+    def __add_tile_row(self, tile_row):
+        self.tile_matrix.append(tile_row)
     
-    def __add_tile_position(self, x, y):
-        tile_position = {"x": x, "y": y}
-        self.tile_positions.append(tile_position)
+    def get_rotated_matrix(self, clockwise=False):
+        if not clockwise:
+            return list(zip(*self.get_tile_matrix[::-1]))
 
 class Graphics:
     def __init__(self, width, height, tile_size, tetris):
@@ -216,6 +259,16 @@ class Game:
         if event.type == pygame.QUIT:
             self.__stop_running()
             # TODO: Hantera user-input
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_w:
+                self.__tetris().rotate()
+                pass
+            if event.key == pygame.K_a:
+                pass
+            elif event.key == pygame.K_d:
+                pass
+            if event.key == pygame.K_s:
+                pass
 
     def __running(self):
         return self.running
@@ -261,7 +314,8 @@ if __name__ == "__main__":
     size = width / cols
 
     block_types = data["blocks"]["types"]
+    block_colors = data["blocks"]["colors"]
 
-    tetris = Tetris(block_types, rows, cols)
+    tetris = Tetris(block_types, block_colors, rows, cols)
     game = Game(fps, width, height, slowness, tetris, size)
     game.run()
