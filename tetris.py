@@ -104,6 +104,7 @@ class Tetris:
         self.__current_block().set_position({"x": old_position["x"] + dx, "y": old_position["y"] + dy})
         self.__set_current_block_color(current_block_color)
 
+    #Tries to rotate the current block
     def try_rotate(self, clockwise : bool):
         current_block = self.__current_block()
         if current_block is None:
@@ -118,6 +119,7 @@ class Tetris:
         self.__current_block().set_tile_matrix(self.__current_block().get_rotated_tile_matrix(clockwise))
         self.__set_current_block_color(current_block_color)
 
+    #Spawns a new block
     def __spawn_block(self):
         x, y = cols // 2, -2
         position = {"x": x, "y": y}
@@ -131,6 +133,7 @@ class Tetris:
                 tile.set_color(block.get_color())
         self.__set_current_block(block)
 
+    #When a block hits other blocks, stop it from falling
     def __stop_block(self):
         current_block = self.__current_block()
         if current_block is None:
@@ -138,6 +141,7 @@ class Tetris:
         for tile_position in current_block.get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             self.__get_tile(x, y).set_is_block(True)
+            self.__get_tile(x, y).set_is_outline(False)
         self.__reset_current_block()
 
     #Move a set of tile positions in a direction
@@ -189,18 +193,43 @@ class Tetris:
                 self.__get_tile(x, y).copy_state(above_tile)
                 above_tile.reset()
 
+    #Reset the state of all tiles on screen in order to update them directly after
     def __reset_current_block_tiles(self): 
         for tile_position in self.__current_block().get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             if y >= 0:
                 self.__get_tile(x, y).reset()
+        for tile_position in self.__get_outline_tile_positions():
+            x, y = tile_position["x"], tile_position["y"]
+            if y >= 0:
+                self.__get_tile(x, y).reset()
     
+    #Update the state of all tiles on screen in order to display the moving block
     def __set_current_block_color(self, color):
-        for tile_position in self.current_block.get_tile_positions():
+        for tile_position in self.__get_outline_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             if y >= 0:
                 self.__get_tile(x, y).set_color(color)
+                self.__get_tile(x, y).set_is_outline(True)
+        for tile_position in self.__current_block().get_tile_positions():
+            x, y = tile_position["x"], tile_position["y"]
+            if y >= 0:
+                self.__get_tile(x, y).set_color(color)
+                self.__get_tile(x, y).set_is_outline(False)
 
+    #Calculates the tile positions of the outlines at the bottom
+    def __get_outline_tile_positions(self):
+        current_block = self.__current_block()
+        tile_positions = current_block.get_tile_positions()
+        okay_to_move_down = True
+        while okay_to_move_down:
+            new_tile_positions = self.__transpose_tile_positions(tile_positions, 0, 1)
+            if not self.__possible_move(new_tile_positions):
+                break
+            tile_positions = new_tile_positions
+        return tile_positions
+
+    #Puts the game in a game-over state
     def __end_game(self):
         self.__reset_current_block()
         self.__set_game_over(True)
@@ -213,7 +242,8 @@ class Tetris:
 
     def get_board(self):
         return self.board
-        
+    
+    #Returns a random tetris block
     def __get_random_block(self):
         random_block_num = random.randint(0, len(self.__block_types()) - 1)
         return self.__block_types()[random_block_num], self.__block_colors()[random_block_num]
@@ -335,7 +365,7 @@ class Graphics:
         board = self.__tetris().get_board()
         for row in board:
             for tile in row:
-                self.__draw_tile(tile.get_x(), tile.get_y(), tile.get_color()) 
+                self.__draw_tile(tile.get_x(), tile.get_y(), tile.get_color(), tile.get_is_outline()) 
         pygame.display.flip()
 
     # Reset screen
@@ -350,11 +380,11 @@ class Graphics:
         return (color[0] * 0.8, color[1] * 0.8, color[2] * 0.8)
 
     # Display a tile
-    def __draw_tile(self, x, y, color):
+    def __draw_tile(self, x, y, color, outline = False):
         size = self.__tile_size()
         position = (x * size + size * 0.05, y * size + size * 0.05, size * 0.9, size * 0.9)
-        pygame.draw.rect(self.__screen(), color, position)
-        if color != BACKGROUND_COLOR:
+        pygame.draw.rect(self.__screen(), color, position, 3 * int(outline))
+        if color != BACKGROUND_COLOR and not outline:
             pygame.draw.polygon(self.__screen(), self.__lighten(color), ( #Up
                 (x * size + size * 0.05, y * size + size * 0.05), 
                 (x * size + size * 0.95, y * size + size * 0.05), 
@@ -395,6 +425,7 @@ class Game:
     def run(self):
         while self.__running():
             self.__add_to_frame_count()
+            self.__update_slowness()
             self.__clock().tick(self.__fps())
 
             if self.__tetris().get_game_over():
@@ -406,6 +437,10 @@ class Game:
                 self.__check_user_event(event)
 
             self.__graphics().display_scene()
+
+    def __update_slowness(self):
+        if self.__frame_count() % 1000 == 0:
+            self.slowness = max(5, int(float(self.__slowness()) * 0.9))
             
     def __check_user_event(self, event):
         tetris = self.__tetris()
@@ -437,6 +472,9 @@ class Game:
         
     def __slowness(self):
         return self.slowness
+
+    def __set_slowness(self, slowness):
+        self.slowness = slowness
 
     def __add_to_frame_count(self):
         self.frame_count += 1
