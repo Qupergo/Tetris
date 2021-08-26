@@ -1,7 +1,7 @@
 from file_helper import *
 import pygame, random
 
-BACKGROUND_COLOR = (0, 0, 0)
+BACKGROUND_COLOR = (30, 30, 30)
 
 class Tile:
     def __init__(self, x, y, is_block, color, is_outline=False):
@@ -19,6 +19,9 @@ class Tile:
     def set_is_outline(self, is_outline):
         self.is_outline = is_outline
 
+    def set_is_outline(self, is_outline):
+        self.is_outline = is_outline
+
     def get_x(self):
         return self.x
 
@@ -30,6 +33,9 @@ class Tile:
 
     def get_is_block(self):
         return self.is_block
+
+    def get_is_outline(self):
+        return self.is_outline
     
     def get_is_outline(self):
         return self.is_outline
@@ -59,20 +65,29 @@ class Tetris:
     def __start_y(self):
         return self.start_y
 
+
     #Handles what happens at this current game state
     def update(self):
         current_block = self.__current_block()
         if current_block == None:
             self.__spawn_block()
         else:
-            tile_positions = current_block.get_tile_positions()
-            if not self.__can_move_down(tile_positions):
-                if self.get_game_over():
-                    return
-                self.__stop_block()
-            else:
-                self.__move_down(current_block.get_color())
+            self.try_move_down()
         self.__check_rows()
+
+    def try_move_down(self):
+        if not self.__can_move_down():
+            if self.get_game_over():
+                return False
+            self.__stop_block()
+        else:
+            self.__move_down(self.__current_block().get_color())
+            return True
+        return False
+
+    def try_fall_down(self):
+        while self.try_move_down():
+            pass
 
     #Checks if there are any completed rows
     def __check_rows(self):
@@ -118,7 +133,11 @@ class Tetris:
         self.__set_current_block_tiles(current_block_color)
 
     #Checks if a block can move down 1 step
-    def __can_move_down(self, tile_positions):
+    def __can_move_down(self):
+        current_block = self.__current_block()
+        if current_block is None:
+            return False
+        tile_positions = current_block.get_tile_positions()
         for tile_position in tile_positions:
             x, y = tile_position["x"], tile_position["y"]
             if y < -1:
@@ -153,6 +172,7 @@ class Tetris:
             if self.__out_of_bounds(tile_position["x"] + translation["x"], tile_position["y"] + translation["y"]):
                 return False
         return True
+
 
     def __move(self, current_block_color, translate_position):
         self.__reset_current_block_tiles()
@@ -189,7 +209,7 @@ class Tetris:
         return self.board
 
     def __spawn_block(self):
-        x, y = cols // 2, -3
+        x, y = cols // 2, -2
         position = {"x": x, "y": y}
         tile_positions, color = self.__get_random_block()
         block = Block(position, tile_positions, color)
@@ -202,7 +222,10 @@ class Tetris:
         self.__set_current_block(block)
 
     def __stop_block(self):
-        for tile_position in self.__current_block().get_tile_positions():
+        current_block = self.__current_block()
+        if current_block is None:
+            return False
+        for tile_position in current_block.get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             self.__get_tile(x, y).set_is_block(True)
         self.__reset_current_block()
@@ -242,12 +265,9 @@ class Tetris:
         for tile_position in self.__current_block().get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             outline_x, outline_y = x, tile_position["y"] + self.down_moves_until_bottom() # Get outline block positions
-            if outline_y >= 0:
-                self.__get_tile(outline_x, outline_y).set_color(color)
-                self.__get_tile(outline_x, outline_y).set_is_outline(True)
+            self.__get_tile(outline_x, outline_y).set_color(color)
+            self.__get_tile(outline_x, outline_y).set_is_outline(True)
             if y >= 0:
-                self.__get_tile(outline_x, outline_y).set_color(color)
-                self.__get_tile(outline_x, outline_y).set_is_outline(True)
                 self.__get_tile(x, y).set_color(color)
                 self.__get_tile(x, y).set_is_outline(False)
 
@@ -329,6 +349,14 @@ class Graphics:
     # Display everything on screen
     def display_scene(self):
         self.__reset_screen()
+
+        size = self.__tile_size()
+        rows, cols = int(self.__height() / size), int(self.__width() / size)
+        for y in range(rows):
+            pygame.draw.line(self.__screen(), (40, 40, 40), (0, y * size), (self.__width(), y * size))
+        for x in range(cols):
+            pygame.draw.line(self.__screen(), (40, 40, 40), (x * size, 0), (x * size, self.__height()))
+
         board = self.__tetris().get_board()
         for row in board:
             for tile in row:
@@ -340,11 +368,35 @@ class Graphics:
         # Fill the background with white
         self.__screen().fill(BACKGROUND_COLOR)
 
+    def __lighten(self, color):
+        return (min(255, color[0] * 1.8), min(255, color[1] * 1.8), min(255, color[2] * 1.8))
+
+    def __darken(self, color):
+        return (color[0] * 0.8, color[1] * 0.8, color[2] * 0.8)
+
     # Display a tile
     def __draw_tile(self, x, y, color, width):
         size = self.__tile_size()
-        position = (x * size, y * size, size, size)
-        pygame.draw.rect(self.__screen(), color, position, width)
+
+        if width == 0:
+            position = (x * size + size * 0.05, y * size + size * 0.05, size * 0.9, size * 0.9)
+            pygame.draw.rect(self.__screen(), color, position)
+            if color != BACKGROUND_COLOR:
+                pygame.draw.polygon(self.__screen(), self.__lighten(color), ( #Up
+                    (x * size + size * 0.05, y * size + size * 0.05), 
+                    (x * size + size * 0.95, y * size + size * 0.05), 
+                    (x * size + size * 0.75, y * size + size * 0.25), 
+                    (x * size + size * 0.25, y * size + size * 0.25)))
+
+
+                pygame.draw.polygon(self.__screen(), self.__darken(color), ( #Right
+                    (x * size + size * 0.95, y * size + size * 0.05),
+                    (x * size + size * 0.95, y * size + size * 0.95), 
+                    (x * size + size * 0.75, y * size + size * 0.75), 
+                    (x * size + size * 0.75, y * size + size * 0.25)))
+        else:
+            position = (x * size, y * size, size, size)
+            pygame.draw.rect(self.__screen(), color, position, width)
 
     def __width(self):
         return self.width
@@ -375,9 +427,11 @@ class Game:
         while self.__running():
             self.__add_to_frame_count()
             self.__clock().tick(self.__fps())
+
             if self.__tetris().get_game_over():
                 print("Game over")
                 return
+
             if self.__frame_count() % self.__slowness() == 0:
                 self.__tetris().update()
             for event in pygame.event.get():
@@ -386,17 +440,21 @@ class Game:
             self.__graphics().display_scene()
             
     def __check_user_event(self, event):
+        tetris = self.__tetris()
         translation = {"x":0, "y":0} # How much to move
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_w:
-                self.__tetris().try_to_rotate()
-                pass
+                tetris.try_to_rotate()
             if event.key == pygame.K_a:
                 translation["x"] = -1
                 tetris.try_move(translation)
             elif event.key == pygame.K_d:
                 translation["x"] = 1
                 tetris.try_move(translation)
+            elif event.key == pygame.K_s:
+                tetris.try_move_down()
+            elif event.key == pygame.K_SPACE:
+                tetris.try_fall_down()
                 
         if event.type == pygame.QUIT:
             self.__stop_running()
@@ -410,7 +468,7 @@ class Game:
 
     def __frame_count(self):
         return self.frame_count
-
+        
     def __slowness(self):
         return self.slowness
 
