@@ -56,19 +56,6 @@ class Tetris:
 
         self.__spawn_block()
 
-        # Use this code below to test the row completion mechanic, (and wait for a fitting block)
-
-        # for y in range(rows - 2, rows):
-        #     for x in range(cols):
-        #         self.board[x][y].set_is_block(True)
-        #         self.board[x][y].set_color((255, 0, 255))
-        #     self.board[5][y].set_is_block(False)
-        #     self.board[6][y].set_is_block(False)
-        #     self.board[5][y].set_color(BACKGROUND_COLOR)
-        #     self.board[6][y].set_color(BACKGROUND_COLOR)
-        # self.board[4][rows - 3].set_color((255, 0, 255))
-        # self.board[4][rows - 3].set_is_block(True)
-
     def __start_y(self):
         return self.start_y
 
@@ -89,8 +76,6 @@ class Tetris:
 
     #Checks if there are any completed rows
     def __check_rows(self):
-        highest_completed_row = None
-        amount_of_completed_rows = 0
         y = self.get_rows() - 1
         while y >= 0:
             if self.__check_row(y):
@@ -188,7 +173,6 @@ class Tetris:
                 above_tile.reset()
 
     #Moves down a block 1 step
-
     def __move_down(self, current_block_color):
         self.__reset_current_block_tiles()
         old_position = self.__current_block().get_position()
@@ -391,11 +375,9 @@ class Game:
         while self.__running():
             self.__add_to_frame_count()
             self.__clock().tick(self.__fps())
-
             if self.__tetris().get_game_over():
                 print("Game over")
                 return
-
             if self.__frame_count() % self.__slowness() == 0:
                 self.__tetris().update()
             for event in pygame.event.get():
@@ -409,11 +391,9 @@ class Game:
             if event.key == pygame.K_w:
                 self.__tetris().try_to_rotate()
                 pass
-
             if event.key == pygame.K_a:
                 translation["x"] = -1
                 tetris.try_move(translation)
-
             elif event.key == pygame.K_d:
                 translation["x"] = 1
                 tetris.try_move(translation)
