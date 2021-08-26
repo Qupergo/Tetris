@@ -258,7 +258,9 @@ class Tetris:
         for tile_position in self.__current_block().get_tile_positions():
             x, y = tile_position["x"], tile_position["y"]
             outline_x, outline_y = x, tile_position["y"] + self.down_moves_until_bottom() # Get outline block positions
-            print(y)
+            if outline_y >= 0:
+                self.__get_tile(outline_x, outline_y).set_color(color)
+                self.__get_tile(outline_x, outline_y).set_is_outline(True)
             if y >= 0:
                 self.__get_tile(outline_x, outline_y).set_color(color)
                 self.__get_tile(outline_x, outline_y).set_is_outline(True)
